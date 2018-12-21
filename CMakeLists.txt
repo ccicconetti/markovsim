@@ -30,6 +30,7 @@ MESSAGE("COMPILER FLAGS RELEASE:   ${CMAKE_CXX_FLAGS_RELEASE}")
 MESSAGE("CMAKE_BUILD_TYPE:         ${CMAKE_BUILD_TYPE}")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/support)
 include_directories(${Boost_INCLUDE_DIRS})
 
 add_subdirectory(Executables)
