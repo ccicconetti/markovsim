@@ -76,7 +76,7 @@ class SteadyState(object):
         for row in mat:
             print row
 
-    def debugPrint(self):
+    def debugPrint(self, printDelay = False):
         "Print the internal data structures"
 
         self.printMat("Network delays",   self.tau)
@@ -87,6 +87,10 @@ class SteadyState(object):
         self.printMat("Primary state",    self.state)
         self.printMat("Probe state",      self.statebar)
         self.printMat("Possible servers", self.possible_servers)
+
+        if printDelay:
+            self.printMat("Steady state average delays (serving)", self.delays())
+            self.printMat("Steady state average delays (probing)", self.delaysbar())
 
     def I(self, client, server, state):
         "Return 1 if the client is served by server in a given state"
@@ -108,6 +112,8 @@ class SteadyState(object):
         delta = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
+            #if self.verbose:
+                #print "delays {}/{}".format(i, self.nclients)
             for k in range(self.nstates):
                 server = self.state[i, k]
                 assert 0 <= server < self.nservers
@@ -131,6 +137,8 @@ class SteadyState(object):
         delta = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
+            #if self.verbose:
+                #print "delaysbar {}/{}".format(i, self.nclients)
             for k in range(self.nstates):
                 server = self.statebar[i, k]
                 assert 0 <= server < self.nservers
