@@ -147,3 +147,21 @@ class SteadyState(object):
                 delta[i, k] = self.tau[i, server] + numerator / denominator
 
         return delta
+
+    def absorbing(self):
+        "Return the list of absorbing states (may be empty)"
+
+        delta = self.delays()
+        deltabar = self.delaysbar()
+        ret = []
+        for k in range(self.nstates):
+            serving_faster = True
+            for i in range(self.nclients):
+                if deltabar[i, k] <= delta[i, k]:
+                    serving_faster = False
+            if serving_faster:
+                ret.append(k)
+
+        return ret
+
+

@@ -43,11 +43,4 @@ print "Steady state average delays (probing)"
 for (i,row) in zip(range(ss.nclients),deltabar):
     print "{}: {}".format(i, row)
 
-for k in range(ss.nstates):
-    serving_faster = True
-    for i in range(ss.nclients):
-        if deltabar[i, k] < delta[i, k]:
-            serving_faster = False
-    if serving_faster:
-        print "State {} is absorbing".format(k)
-
+print "Absorbing states: {}".format(', '.join([str(x) for x in ss.absorbing()]))
