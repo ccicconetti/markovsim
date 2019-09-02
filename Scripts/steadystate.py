@@ -121,7 +121,7 @@ class SteadyState(object):
                     denominator -= \
                         self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
 
-                delta[i, k] = self.tau[i, server] + numerator / denominator
+                delta[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
 
         return delta
 
@@ -144,7 +144,7 @@ class SteadyState(object):
                     denominator -= \
                         self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
 
-                delta[i, k] = self.tau[i, server] + numerator / denominator
+                delta[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
 
         return delta
 
@@ -157,11 +157,12 @@ class SteadyState(object):
         for k in range(self.nstates):
             serving_faster = True
             for i in range(self.nclients):
-                if deltabar[i, k] <= delta[i, k]:
+                if deltabar[i, k] < 0 and delta[i, k] > 0:
+                    continue
+                if delta[i, k] < 0 or deltabar[i, k] <= delta[i, k]:
                     serving_faster = False
             if serving_faster:
                 ret.append(k)
 
         return ret
-
 
