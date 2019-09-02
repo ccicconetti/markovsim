@@ -14,6 +14,7 @@ parser.add_argument(
     help="Be verbose")
 args = parser.parse_args()
 
+chi = 0.1
 tau = np.array([[1, 2, 3], [4, 5, 6]])
 x = np.array([1, 2])
 load = np.array([0.1, 0.2])
@@ -21,6 +22,7 @@ mu = np.array([1, 2, 3])
 association = np.array([[1, 1, 0], [0, 1, 1]])
 
 ss = steadystate.SteadyState(
+    chi = chi,
     tau = tau,
     x = x,
     load = load,
@@ -29,3 +31,23 @@ ss = steadystate.SteadyState(
     verbose = args.verbose)
 
 ss.debugPrint()
+
+delta = ss.delays()
+print "Steady state average delays (serving)"
+for (i,row) in zip(range(ss.nclients),delta):
+    print "{}: {}".format(i, row)
+
+
+deltabar = ss.delaysbar()
+print "Steady state average delays (probing)"
+for (i,row) in zip(range(ss.nclients),deltabar):
+    print "{}: {}".format(i, row)
+
+for k in range(ss.nstates):
+    serving_faster = True
+    for i in range(ss.nclients):
+        if deltabar[i, k] < delta[i, k]:
+            serving_faster = False
+    if serving_faster:
+        print "State {} is absorbing".format(k)
+

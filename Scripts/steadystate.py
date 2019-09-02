@@ -7,6 +7,7 @@ class SteadyState(object):
     """Steady-state delays of a serverless edge computing with two options"""
 
     def __init__(self,
+                 chi,
                  tau,
                  x,
                  load,
@@ -14,6 +15,7 @@ class SteadyState(object):
                  association,
                  verbose = False):
 
+        assert 0 < chi < 1
         assert len(tau.shape) == 2
         assert len(x.shape) == 1
         assert len(load.shape) == 1
@@ -24,6 +26,7 @@ class SteadyState(object):
         self.verbose     = verbose
 
         # input
+        self.chi         = chi
         self.tau         = tau
         self.x           = x
         self.load        = load
@@ -67,11 +70,15 @@ class SteadyState(object):
 
     @staticmethod
     def printMat(name, mat):
+        "Print a matrix per row, prepending the data structure name in a separate line"
+
         print "{}: ".format(name)
         for row in mat:
             print row
 
     def debugPrint(self):
+        "Print the internal data structures"
+
         self.printMat("Network delays",   self.tau)
         self.printMat("Requests",         self.x)
         self.printMat("Request rates",    self.load)
@@ -80,3 +87,63 @@ class SteadyState(object):
         self.printMat("Primary state",    self.state)
         self.printMat("Probe state",      self.statebar)
         self.printMat("Possible servers", self.possible_servers)
+
+    def I(self, client, server, state):
+        "Return 1 if the client is served by server in a given state"
+
+        if self.state[client, state] == server:
+            return 1.0
+        return 0.0
+
+    def Ibar(self, client, server, state):
+        "Return 1 if the client is probing server in a given state"
+
+        if self.statebar[client, state] == server:
+            return 1.0
+        return 0.0
+
+    def delays(self):
+        "Compute the average delays when being server"
+
+        delta = np.zeros([self.nclients, self.nstates])
+
+        for i in range(self.nclients):
+            for k in range(self.nstates):
+                server = self.state[i, k]
+                assert 0 <= server < self.nservers
+
+                numerator = self.x[i] * self.mu[server]
+                denominator = self.mu[server]
+                denominator -= self.load[i]
+                for h in range(self.nclients):
+                    if h == i:
+                        continue
+                    denominator -= \
+                        self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
+
+                delta[i, k] = self.tau[i, server] + numerator / denominator
+
+        return delta
+
+    def delaysbar(self):
+        "Compute the average delays when probing"
+
+        delta = np.zeros([self.nclients, self.nstates])
+
+        for i in range(self.nclients):
+            for k in range(self.nstates):
+                server = self.statebar[i, k]
+                assert 0 <= server < self.nservers
+
+                numerator = self.x[i] * self.mu[server]
+                denominator = self.mu[server]
+                denominator -= self.chi * self.load[i]
+                for h in range(self.nclients):
+                    if h == i:
+                        continue
+                    denominator -= \
+                        self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
+
+                delta[i, k] = self.tau[i, server] + numerator / denominator
+
+        return delta
