@@ -2,6 +2,8 @@
 
 import numpy as np
 from itertools import product
+import scipy.sparse as sp
+from scipy.linalg import norm
 
 class SteadyState(object):
     """Steady-state delays of a serverless edge computing with two options"""
@@ -37,6 +39,12 @@ class SteadyState(object):
         # derived variables
         #
 
+        # lazy initialization variables
+        self.delta    = None
+        self.deltabar = None
+        self.Q        = None
+        self.pi       = None
+
         # scalars
         self.nclients = tau.shape[0]
         self.nservers = tau.shape[1]
@@ -68,6 +76,14 @@ class SteadyState(object):
         assert self.association.shape[0] == self.nclients
         assert self.association.shape[1] == self.nservers
 
+    def clearDerived(self):
+        "Remove all derived data structures"
+
+        self.delta    = None
+        self.deltabar = None
+        self.Q        = None
+        self.pi       = None
+
     @staticmethod
     def printMat(name, mat):
         "Print a matrix per row, prepending the data structure name in a separate line"
@@ -91,6 +107,8 @@ class SteadyState(object):
         if printDelay:
             self.printMat("Steady state average delays (serving)", self.delays())
             self.printMat("Steady state average delays (probing)", self.delaysbar())
+            self.printMat("Steady state state transition matrix", self.transition())
+            self.printMat("Steady state state probabilities", self.probabilities())
 
     def I(self, client, server, state):
         "Return 1 if the client is served by server in a given state"
@@ -109,7 +127,10 @@ class SteadyState(object):
     def delays(self):
         "Compute the average delays when being server"
 
-        delta = np.zeros([self.nclients, self.nstates])
+        if self.delta is not None:
+            return self.delta
+
+        self.delta = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
             #if self.verbose:
@@ -127,14 +148,17 @@ class SteadyState(object):
                     denominator -= \
                         self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
 
-                delta[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
+                self.delta[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
 
-        return delta
+        return self.delta
 
     def delaysbar(self):
         "Compute the average delays when probing"
 
-        delta = np.zeros([self.nclients, self.nstates])
+        if self.deltabar is not None:
+            return self.deltabar
+
+        self.deltabar = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
             #if self.verbose:
@@ -152,23 +176,114 @@ class SteadyState(object):
                     denominator -= \
                         self.load[h] * ( self.I(h, server, k) + self.chi * self.Ibar(h, server, k) )
 
-                delta[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
+                self.deltabar[i, k] = self.tau[i, server] + numerator / denominator if denominator > 0 else -1
 
-        return delta
+        return self.deltabar
+
+    def transition(self):
+        "Compute the transition matrix"
+
+        if self.Q is not None:
+            return self.Q
+
+        # make sure the self.delta and self.deltabar variables are initialized
+        self.delays()
+        self.delaysbar()
+
+        # create an empty sparse matrix
+        self.Q = sp.dok_matrix((self.nstates,self.nstates))
+
+        # fill the sparse matrix Q with the state transition probabilities
+        for k in range(self.nstates):
+            # for every client, the possible servers to which it may go
+            possible_destinations = []
+            for i in range(self.nclients):
+                if self.__remain(i, k):
+                    possible_destinations.append([self.state[i, k]])
+                else:
+                    possible_destinations.append([self.state[i, k], self.statebar[i, k]])
+
+            # identify the list of possible destination states, not including itself
+            dest_states = []
+            for h in range(self.nstates):
+                to_be_added = True
+                if h == k:
+                    to_be_added = False
+                else:
+                    for i in range(self.nclients):
+                        if self.state[i, h] not in possible_destinations[i]:
+                            to_be_added = False
+                            break
+                if to_be_added:
+                    dest_states.append(h)
+            
+            # if there are no possible destinations, then k is an absorbing state,
+            # which should not be the case
+            if len(dest_states) == 0:
+                raise Exception("Cannot compute transition matrix with absorbing states")
+
+            # we assume any state has the same probability to be reached from this
+            state_prob = 1.0 / len(dest_states)
+            for h in dest_states:
+                self.Q[k, h] = state_prob
+
+            # the transition matrix has zero-sum per row
+            self.Q[k, k] = -1.0
+
+        return self.Q
+
+
+    def probabilities(self):
+        "Compute the steady state probabilities"
+
+        if self.pi is not None:
+            return self.pi
+
+        # make sure the self.Q variable is initialized
+        self.transition()
+
+        size = self.nstates
+        l = min(self.Q.values())*1.001  # avoid periodicity, see trivedi's book
+        P = sp.eye(size, size) - self.Q/l
+        # compute Pi
+        P =  P.tocsr()
+        self.pi = np.zeros(size)
+        pi1 = np.zeros(size)
+        self.pi[0] = 1;
+        n = norm(self.pi - pi1, 1)
+        iterations = 0
+        while n > 1e-3 and iterations < 1e5:
+            pi1 = self.pi*P
+            self.pi = pi1*P   # avoid copying pi1 to pi
+            n = norm(self.pi - pi1, 1)
+            iterations += 1
+
+        return self.pi
+
+    def __remain(self, i, k):
+        "Return True if the client i prefers to remain when in state k"
+
+        assert self.delta is not None
+        assert self.deltabar is not None
+
+        if self.deltabar[i, k] < 0 and self.delta[i, k] > 0:
+            return True
+        if self.delta[i, k] < 0 or self.deltabar[i, k] <= self.delta[i, k]:
+            return False
+        return True
 
     def absorbing(self):
         "Return the list of absorbing states (may be empty)"
 
-        delta = self.delays()
-        deltabar = self.delaysbar()
+        if self.delta is None:
+            self.delays()
+        if self.deltabar is None:
+            self.delaysbar();
         ret = []
         for k in range(self.nstates):
             serving_faster = True
             for i in range(self.nclients):
-                if deltabar[i, k] < 0 and delta[i, k] > 0:
-                    continue
-                if delta[i, k] < 0 or deltabar[i, k] <= delta[i, k]:
-                    serving_faster = False
+                serving_faster &= self.__remain(i, k)
             if serving_faster:
                 ret.append(k)
 
