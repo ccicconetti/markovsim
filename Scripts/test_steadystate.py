@@ -17,9 +17,13 @@ class TestSteadyState(unittest.TestCase):
         self.assertEqual([], ss.absorbing())
 
         ss.mu = np.array([1, 12])
+        self.assertEqual([], ss.absorbing())
+        ss.clear()
         self.assertEqual([3], ss.absorbing())
 
         ss.mu = np.array([12, 1])
+        self.assertEqual([3], ss.absorbing())
+        ss.clear()
         self.assertEqual([0], ss.absorbing())
 
 if __name__ == '__main__':

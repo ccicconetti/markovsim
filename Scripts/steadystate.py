@@ -76,7 +76,7 @@ class SteadyState(object):
         assert self.association.shape[0] == self.nclients
         assert self.association.shape[1] == self.nservers
 
-    def clearDerived(self):
+    def clear(self):
         "Remove all derived data structures"
 
         self.delta    = None
@@ -105,8 +105,8 @@ class SteadyState(object):
         self.printMat("Possible servers", self.possible_servers)
 
         if printDelay:
-            self.printMat("Steady state average delays (serving)", self.delays())
-            self.printMat("Steady state average delays (probing)", self.delaysbar())
+            self.printMat("Steady state average delays (serving)", self.__delta())
+            self.printMat("Steady state average delays (probing)", self.__deltabar())
             self.printMat("Steady state state transition matrix", self.transition())
             self.printMat("Steady state state probabilities", self.probabilities())
 
@@ -124,7 +124,7 @@ class SteadyState(object):
             return 1.0
         return 0.0
 
-    def delays(self):
+    def __delta(self):
         "Compute the average delays when being server"
 
         if self.delta is not None:
@@ -133,8 +133,6 @@ class SteadyState(object):
         self.delta = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
-            #if self.verbose:
-                #print "delays {}/{}".format(i, self.nclients)
             for k in range(self.nstates):
                 server = self.state[i, k]
                 assert 0 <= server < self.nservers
@@ -152,7 +150,7 @@ class SteadyState(object):
 
         return self.delta
 
-    def delaysbar(self):
+    def __deltabar(self):
         "Compute the average delays when probing"
 
         if self.deltabar is not None:
@@ -161,8 +159,6 @@ class SteadyState(object):
         self.deltabar = np.zeros([self.nclients, self.nstates])
 
         for i in range(self.nclients):
-            #if self.verbose:
-                #print "delaysbar {}/{}".format(i, self.nclients)
             for k in range(self.nstates):
                 server = self.statebar[i, k]
                 assert 0 <= server < self.nservers
@@ -187,8 +183,8 @@ class SteadyState(object):
             return self.Q
 
         # make sure the self.delta and self.deltabar variables are initialized
-        self.delays()
-        self.delaysbar()
+        self.__delta()
+        self.__deltabar()
 
         # create an empty sparse matrix
         self.Q = sp.dok_matrix((self.nstates,self.nstates))
@@ -276,9 +272,9 @@ class SteadyState(object):
         "Return the list of absorbing states (may be empty)"
 
         if self.delta is None:
-            self.delays()
+            self.__delta()
         if self.deltabar is None:
-            self.delaysbar();
+            self.__deltabar();
         ret = []
         for k in range(self.nstates):
             serving_faster = True
