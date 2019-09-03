@@ -1,5 +1,9 @@
 """Compute the steady-state delays of a serverless edge computing"""
 
+__author__  = "Claudio Cicconetti"
+__version__ = "0.1.0"
+__license__ = "MIT"
+
 import numpy as np
 from itertools import product
 import scipy.sparse as sp

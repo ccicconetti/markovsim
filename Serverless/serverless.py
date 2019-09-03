@@ -1,6 +1,10 @@
 #!/usr/bin/python
 """Print the steady-state delays of a serverless edge computing"""
 
+__author__  = "Claudio Cicconetti"
+__version__ = "0.1.0"
+__license__ = "MIT"
+
 import sys
 import argparse
 import steadystate

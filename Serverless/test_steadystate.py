@@ -1,3 +1,7 @@
+__author__  = "Claudio Cicconetti"
+__version__ = "0.1.0"
+__license__ = "MIT"
+
 import unittest
 import numpy as np
 import steadystate
