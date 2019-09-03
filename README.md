@@ -1,8 +1,26 @@
+This repository contains two independent projects, both related
+to the numerical simulations of systems modeled as Markov
+processes:
+
+- serverless (in Python): simulator of a serverless environment
+- markovsim (in C++): generic M/M/c simulator
+
 # serverless
 
 A numerical tool to compute the steady-state average delay of clients in
 a serverless environment, where the servers behave as M/M/1 processes
 with Processor Sharing policy.
+
+The network latency between every client and server is constant and
+can be set by the user.
+
+The simulator assumes that every client is associated to exactly two
+servers and it collects a long-term average of the service delay,
+which is used to decide whether to switch to the secondary server
+to which it is assigned. In order to compare the delay between primary
+and secondary servers, it is also assumed that the client performs
+a fraction of its requests towards the secondary server (the
+fraction being equal for all clients and called Chi in code).
 
 ## Dependencies
 
@@ -25,9 +43,23 @@ Requires C++-14 support.
 Uses uiiitsupport https://github.com/ccicconetti/support/.
 Tested on Mac OS X and Linux.
 
-## Compilation
+## Build instructions
 
-Assuming `clang++` is your compiler:
+First, make sure you have [CMake](https://cmake.org/) (version >= 3.2), a recent C++ compiler and all the dependencies installed:
+
+- [glog](https://github.com/google/glog)
+- [Boost](https://www.boost.org/)
+
+Very likely you can find packaged versions in your system's package repository.
+
+Note that [gmock](https://github.com/google/googlemock) is also needed to compile the unit tests but, if everything goes right, it will be downloaded automatically by CMake (needless to say: you do need a working Internet connection for this step).
+
+```
+git clone git@github.com:ccicconetti/markovsim.git
+git submodule update --init --recursive
+```
+
+Once everything is ready (assuming `clang++` is your compiler):
 
 ```
 cd build/debug
