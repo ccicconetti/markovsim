@@ -5,6 +5,10 @@ from itertools import product
 import scipy.sparse as sp
 from scipy.linalg import norm
 
+class DegenerateException(Exception):
+    """Raised when the transition matrix is degenerate"""
+    pass
+
 class SteadyState(object):
     """Steady-state delays of a serverless edge computing with two options"""
 
@@ -44,6 +48,7 @@ class SteadyState(object):
         self.deltabar = None
         self.Q        = None
         self.pi       = None
+        self.delays   = None
 
         # scalars
         self.nclients = tau.shape[0]
@@ -83,14 +88,19 @@ class SteadyState(object):
         self.deltabar = None
         self.Q        = None
         self.pi       = None
+        self.delays   = None
 
     @staticmethod
     def printMat(name, mat):
         "Print a matrix per row, prepending the data structure name in a separate line"
 
         print "{}: ".format(name)
-        for row in mat:
-            print row
+        if isinstance(mat, sp.dok_matrix):
+            for row in mat.toarray():
+                print row
+        else:
+            for row in mat:
+                print row
 
     def debugPrint(self, printDelay = False):
         "Print the internal data structures"
@@ -105,10 +115,14 @@ class SteadyState(object):
         self.printMat("Possible servers", self.possible_servers)
 
         if printDelay:
-            self.printMat("Steady state average delays (serving)", self.__delta())
-            self.printMat("Steady state average delays (probing)", self.__deltabar())
-            self.printMat("Steady state state transition matrix", self.transition())
-            self.printMat("Steady state state probabilities", self.probabilities())
+            self.printMat("Average delays per state (serving)", self.__delta())
+            self.printMat("Average delays per state(probing)", self.__deltabar())
+            try:
+                self.printMat("Steady state state transition matrix", self.transition())
+                self.printMat("Steady state state probabilities", self.probabilities())
+                self.printMat("Steady state average delays", self.steady_state_delays())
+            except DegenerateException:
+                self.clear()
 
     def I(self, client, server, state):
         "Return 1 if the client is served by server in a given state"
@@ -207,7 +221,8 @@ class SteadyState(object):
                     to_be_added = False
                 else:
                     for i in range(self.nclients):
-                        if self.state[i, h] not in possible_destinations[i]:
+                        if self.state[i, h] not in possible_destinations[i] or \
+                           self.delta[i, h] < 0:
                             to_be_added = False
                             break
                 if to_be_added:
@@ -216,7 +231,7 @@ class SteadyState(object):
             # if there are no possible destinations, then k is an absorbing state,
             # which should not be the case
             if len(dest_states) == 0:
-                raise Exception("Cannot compute transition matrix with absorbing states")
+                raise DegenerateException("Cannot compute transition matrix with absorbing states")
 
             # we assume any state has the same probability to be reached from this
             state_prob = 1.0 / len(dest_states)
@@ -229,6 +244,13 @@ class SteadyState(object):
         return self.Q
 
 
+    #
+    # copied from the SciPy cookbook
+    # file: tandemqueue.py
+    # the method is originally called computePiMethod1()
+    #
+    # https://scipy-cookbook.readthedocs.io/items/Solving_Large_Markov_Chains.html
+    #
     def probabilities(self):
         "Compute the steady state probabilities"
 
@@ -285,3 +307,16 @@ class SteadyState(object):
 
         return ret
 
+    def steady_state_delays(self):
+        "Return the average delay per client"
+
+        if self.delays is not None:
+            return self.delays
+
+        # make sure the delta and state probabilities are initialized
+        self.__delta()
+        self.probabilities()
+
+        self.delays = np.matmul(self.delta, self.pi)
+
+        return self.delays

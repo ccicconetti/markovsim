@@ -4,7 +4,7 @@ import steadystate
 
 class TestSteadyState(unittest.TestCase):
 
-    def test_simple_topology(self):
+    def test_absorbing(self):
         chi = 0.1
         tau = np.array([[0, 0], [0, 0]])
         x = np.array([1, 1])
@@ -25,6 +25,22 @@ class TestSteadyState(unittest.TestCase):
         self.assertEqual([3], ss.absorbing())
         ss.clear()
         self.assertEqual([0], ss.absorbing())
+
+    def test_steady_state_delays(self):
+        chi = 0.5
+        tau = np.array([[1, 1, 3], [2, 2, 1]])
+        x = np.array([1, 1])
+        load = np.array([0.2, 0.2])
+        mu = np.array([1, 2, 1])
+        association = np.array([[1, 1, 0], [0, 1, 1]])
+
+        ss = steadystate.SteadyState(chi, tau, x, load, mu, association, False)
+
+        self.assertEqual([], ss.absorbing())
+
+        expected = [2.213, 2.250]
+        for e,a in zip(expected, ss.steady_state_delays()):
+            self.assertAlmostEqual(e, a, 3)
 
 if __name__ == '__main__':
     unittest.main()

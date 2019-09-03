@@ -40,6 +40,12 @@ parser.add_argument(
 parser.add_argument(
     "--runs", type=int, default=1,
     help="Number of replications")
+parser.add_argument(
+    "--skip_runs", type=int, default=0,
+    help="Number of replications to be skipped")
+parser.add_argument(
+    "--output", type=str, default='out',
+    help="Output file")
 args = parser.parse_args()
 
 # consistency checks
@@ -56,6 +62,8 @@ tau = np.zeros([args.clients, args.servers])
 # same task on all clients
 x = np.ones([args.clients])
 
+average_delays = []
+skipped = 0
 for n in range(args.runs):
     # random serving rate
     mu = np.array([random.uniform(args.mu_min, args.mu_max) for i in range(args.servers)])
@@ -69,6 +77,12 @@ for n in range(args.runs):
         for j in random.sample(range(args.servers), 2):
             association[i, j] = 1
 
+    # skip runs, if requested by the user
+    if args.skip_runs > skipped:
+        print "skipped run#{}".format(n)
+        skipped += 1
+        continue
+
     ss = steadystate.SteadyState(
         chi = args.chi,
         tau = tau,
@@ -81,11 +95,14 @@ for n in range(args.runs):
     if args.verbose:
         ss.debugPrint(True)
 
-    print "run#{}, absorbing states: {}".format(n, ', '.join([str(x) for x in ss.absorbing()]))
+    try:
+        average_delays.append(ss.steady_state_delays())
+    except steadystate.DegenerateException:
+        print "skipped run#{}, absorbing states: {}".format(n, ', '.join([str(x) for x in ss.absorbing()]))
 
+with open(args.output, 'w') as outfile:
+    for array in average_delays:
+        for value in array:
+            outfile.write('{} '.format(value))
+        outfile.write('\n')
 
-# tau = np.array([[1, 2, 3], [4, 5, 6]])
-# x = np.array([1, 2])
-# load = np.array([0.1, 0.2])
-# mu = np.array([1, 2, 3])
-# association = np.array([[1, 1, 0], [0, 1, 1]])
