@@ -6,6 +6,7 @@ import argparse
 import steadystate
 import numpy as np
 import random 
+import time
 
 parser = argparse.ArgumentParser(
     description=__doc__,
@@ -13,6 +14,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--verbose", action="store_true", default=False,
     help="Be verbose")
+parser.add_argument(
+    "--progress", action="store_true", default=False,
+    help="Print progress")
 parser.add_argument(
     "--seed", type=int, default=0,
     help="Random number generators' seed")
@@ -96,7 +100,11 @@ for n in range(args.runs):
         ss.debugPrint(True)
 
     try:
+        now = time.time()
         average_delays.append(ss.steady_state_delays())
+        if args.progress:
+            print "run#{}: {} s".format(n, time.time() - now)
+
     except steadystate.DegenerateException:
         print "skipped run#{}, absorbing states: {}".format(n, ', '.join([str(x) for x in ss.absorbing()]))
 
