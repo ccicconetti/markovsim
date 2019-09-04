@@ -10,6 +10,8 @@ import numpy as np
 from itertools import product
 import scipy.sparse as sp
 from scipy.linalg import norm
+import threading
+import time
 
 class DegenerateException(Exception):
     """Raised when the transition matrix is degenerate"""
@@ -433,3 +435,81 @@ class SteadyStateSingle(SteadyStateGeneric):
                 self.delays[i] = self.tau[i, j] + queueing_delay \
             
         return self.delays
+
+################################################################################
+################################################################################
+################################################################################
+
+class Simulator(object):
+    "Run simulations using a pool of threads"
+
+    def __init__(self, single = False, nthreads = 1, verbose = False, progress = False):
+        "Initialize object"
+
+        # consistency checks
+        assert nthreads >= 1
+
+        # input
+        self.single   = single
+        self.nthreads = nthreads
+        self.verbose  = verbose
+        self.progress = progress
+
+        # internal data structures
+        self.lock = threading.Lock()
+        self.done = []
+        self.average_delays = []
+
+    def run(self, configurations):
+        "Run the simulations in the given list of Configuration objects"
+
+        self.configurations = configurations
+        self.done = [False for i in range(len(configurations))]
+        self.average_delays = [None for i in range(len(configurations))]
+
+        # spawn threads
+        threads = []
+        for i in range(min(self.nthreads,len(configurations))):
+            t = threading.Thread(target = self.__work, args=[i])
+            threads.append(t)
+            t.start()
+
+        # wait for the threads to terminate
+        for t in threads:
+            t.join()
+
+    def __work(self, tid):
+        "Execute a single simulation"
+
+        while True:
+            # find the next job, if none leave
+            job = None
+            with self.lock:
+                for done, ndx in zip(self.done, range(len(self.done))):
+                    if not done:
+                        self.done[ndx] = True
+                        job = ndx
+                        break
+
+            if job is None:
+                break
+
+            if self.single:
+                ss = SteadyStateSingle(self.configurations[job], self.verbose)
+            else:
+                ss = SteadyState(self.configurations[job], self.verbose)
+
+            if self.verbose:
+                with self.lock:
+                    ss.debugPrint(True)
+
+            try:
+                now = time.time()
+                average_delays = ss.steady_state_delays()
+                with self.lock:
+                    if self.progress:
+                        print "thread#{}, job {}/{}, required {} s".format(tid, ndx, len(self.done), time.time() - now)
+                    self.average_delays[job] = average_delays
+
+            except DegenerateException:
+                print "skipped run#{}, absorbing states: {}".format(job, ', '.join([str(y) for y in ss.absorbing()]))

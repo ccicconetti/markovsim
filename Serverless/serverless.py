@@ -10,7 +10,6 @@ import steadystate
 import configuration
 import numpy as np
 import random 
-import time
 
 parser = argparse.ArgumentParser(
     description=__doc__,
@@ -57,6 +56,9 @@ parser.add_argument(
 parser.add_argument(
     "--output", type=str, default='out',
     help="Output file")
+parser.add_argument(
+    "--threads", type=int, default=1,
+    help="Number of threads to use")
 args = parser.parse_args()
 
 # consistency checks
@@ -73,9 +75,9 @@ tau = np.zeros([args.clients, args.servers])
 # same task on all clients
 x = np.ones([args.clients])
 
+# create the configurations for all the runs
 num_servers_per_client = 1 if args.single else 2
-
-average_delays = []
+configurations = []
 skipped = 0
 for n in range(args.runs):
     # random serving rate
@@ -96,38 +98,24 @@ for n in range(args.runs):
         skipped += 1
         continue
 
-    conf = configuration.Configuration(
+    configurations.append(configuration.Configuration(
         chi = args.chi,
         tau = tau,
         x = x,
         load = load,
         mu = mu,
-        association = association)
+        association = association))
 
-    ss = None
-    if args.single:
-        ss = steadystate.SteadyStateSingle(
-            conf,
-            verbose = args.verbose)
-    else:
-        ss = steadystate.SteadyState(
-            conf,
-            verbose = args.verbose)
+sim = steadystate.Simulator(
+    single = args.single,
+    nthreads = args.threads,
+    verbose = args.verbose,
+    progress = args.progress)
 
-    if args.verbose:
-        ss.debugPrint(True)
-
-    try:
-        now = time.time()
-        average_delays.append(ss.steady_state_delays())
-        if args.progress:
-            print "run#{}: {} s".format(n, time.time() - now)
-
-    except steadystate.DegenerateException:
-        print "skipped run#{}, absorbing states: {}".format(n, ', '.join([str(y) for y in ss.absorbing()]))
+sim.run(configurations)
 
 with open(args.output, 'w') as outfile:
-    for array in average_delays:
+    for array in sim.average_delays:
         for value in array:
             outfile.write('{} '.format(value))
         outfile.write('\n')
