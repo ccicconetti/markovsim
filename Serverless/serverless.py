@@ -5,7 +5,6 @@ __author__  = "Claudio Cicconetti"
 __version__ = "0.1.0"
 __license__ = "MIT"
 
-import sys
 import argparse
 import steadystate
 import numpy as np
@@ -110,7 +109,7 @@ for n in range(args.runs):
             print "run#{}: {} s".format(n, time.time() - now)
 
     except steadystate.DegenerateException:
-        print "skipped run#{}, absorbing states: {}".format(n, ', '.join([str(x) for x in ss.absorbing()]))
+        print "skipped run#{}, absorbing states: {}".format(n, ', '.join([str(y) for y in ss.absorbing()]))
 
 with open(args.output, 'w') as outfile:
     for array in average_delays:
