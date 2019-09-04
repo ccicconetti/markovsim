@@ -5,6 +5,7 @@ __license__ = "MIT"
 import unittest
 import numpy as np
 import steadystate
+import configuration
 
 class TestSteadyState(unittest.TestCase):
 
@@ -16,7 +17,7 @@ class TestSteadyState(unittest.TestCase):
         mu = np.array([1, 1])
         association = np.array([[1, 1], [1, 1]])
 
-        ss = steadystate.SteadyState(chi, tau, x, load, mu, association, False)
+        ss = steadystate.SteadyState(configuration.Configuration(chi, tau, x, load, mu, association), False)
 
         self.assertEqual([], ss.absorbing())
 
@@ -30,6 +31,7 @@ class TestSteadyState(unittest.TestCase):
         ss.clear()
         self.assertEqual([0], ss.absorbing())
 
+
     def test_steady_state_delays(self):
         chi = 0.5
         tau = np.array([[1, 1, 3], [2, 2, 1]])
@@ -38,7 +40,7 @@ class TestSteadyState(unittest.TestCase):
         mu = np.array([1, 2, 1])
         association = np.array([[1, 1, 0], [0, 1, 1]])
 
-        ss = steadystate.SteadyState(chi, tau, x, load, mu, association, False)
+        ss = steadystate.SteadyState(configuration.Configuration(chi, tau, x, load, mu, association), False)
 
         self.assertEqual([], ss.absorbing())
 

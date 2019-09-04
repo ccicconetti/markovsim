@@ -7,6 +7,7 @@ __license__ = "MIT"
 
 import argparse
 import steadystate
+import configuration
 import numpy as np
 import random 
 import time
@@ -17,6 +18,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--verbose", action="store_true", default=False,
     help="Be verbose")
+parser.add_argument(
+    "--single", action="store_true", default=False,
+    help="Single client-server association")
 parser.add_argument(
     "--progress", action="store_true", default=False,
     help="Print progress")
@@ -69,6 +73,8 @@ tau = np.zeros([args.clients, args.servers])
 # same task on all clients
 x = np.ones([args.clients])
 
+num_servers_per_client = 1 if args.single else 2
+
 average_delays = []
 skipped = 0
 for n in range(args.runs):
@@ -81,7 +87,7 @@ for n in range(args.runs):
     # random association
     association = np.zeros([args.clients, args.servers], dtype = int)
     for i in range(args.clients):
-        for j in random.sample(range(args.servers), 2):
+        for j in random.sample(range(args.servers), num_servers_per_client):
             association[i, j] = 1
 
     # skip runs, if requested by the user
@@ -90,14 +96,23 @@ for n in range(args.runs):
         skipped += 1
         continue
 
-    ss = steadystate.SteadyState(
+    conf = configuration.Configuration(
         chi = args.chi,
         tau = tau,
         x = x,
         load = load,
         mu = mu,
-        association = association,
-        verbose = args.verbose)
+        association = association)
+
+    ss = None
+    if args.single:
+        ss = steadystate.SteadyStateSingle(
+            conf,
+            verbose = args.verbose)
+    else:
+        ss = steadystate.SteadyState(
+            conf,
+            verbose = args.verbose)
 
     if args.verbose:
         ss.debugPrint(True)

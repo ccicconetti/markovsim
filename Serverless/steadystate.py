@@ -1,4 +1,6 @@
-"""Compute the steady-state delays of a serverless edge computing"""
+"""
+Compute the steady-state delays of a serverless edge computing system
+"""
 
 __author__  = "Claudio Cicconetti"
 __version__ = "0.1.0"
@@ -13,35 +15,46 @@ class DegenerateException(Exception):
     """Raised when the transition matrix is degenerate"""
     pass
 
-class SteadyState(object):
-    """Steady-state delays of a serverless edge computing with two options"""
+class SteadyStateGeneric(object):
+    """Steady-state simulation object"""
 
     def __init__(self,
-                 chi,
-                 tau,
-                 x,
-                 load,
-                 mu,
-                 association,
                  verbose = False):
-
-        assert 0 < chi < 1
-        assert len(tau.shape) == 2
-        assert len(x.shape) == 1
-        assert len(load.shape) == 1
-        assert len(mu.shape) == 1
-        assert len(association.shape) == 2
-
         # configuration
         self.verbose     = verbose
 
+    @staticmethod
+    def printMat(name, mat):
+        "Print a matrix per row, prepending the data structure name in a separate line"
+
+        print "{}: ".format(name)
+        if isinstance(mat, sp.dok_matrix):
+            for row in mat.toarray():
+                print row
+        else:
+            for row in mat:
+                print row
+
+################################################################################
+################################################################################
+################################################################################
+
+class SteadyState(SteadyStateGeneric):
+    """Steady-state delays of a serverless edge computing with two options"""
+
+    def __init__(self,
+                 configuration,
+                 verbose = False):
+
+        super(SteadyState, self).__init__(verbose)
+
         # input
-        self.chi         = chi
-        self.tau         = tau
-        self.x           = x
-        self.load        = load
-        self.mu          = mu
-        self.association = association
+        self.chi         = configuration.chi
+        self.tau         = configuration.tau
+        self.x           = configuration.x
+        self.load        = configuration.load
+        self.mu          = configuration.mu
+        self.association = configuration.association
 
         #
         # derived variables
@@ -55,8 +68,8 @@ class SteadyState(object):
         self.delays   = None
 
         # scalars
-        self.nclients = tau.shape[0]
-        self.nservers = tau.shape[1]
+        self.nclients = self.tau.shape[0]
+        self.nservers = self.tau.shape[1]
         self.nstates  = pow(2, self.nclients)
 
         # possible servers for each client
@@ -323,4 +336,100 @@ class SteadyState(object):
 
         self.delays = np.matmul(self.delta, self.pi)
 
+        return self.delays
+
+################################################################################
+################################################################################
+################################################################################
+
+class SteadyStateSingle(SteadyStateGeneric):
+    """Steady-state delays of a serverless edge computing with a single option"""
+
+    def __init__(self,
+                 configuration,
+                 verbose = False):
+
+        super(SteadyStateSingle, self).__init__(verbose)
+
+        # input
+        self.tau         = configuration.tau
+        self.x           = configuration.x
+        self.load        = configuration.load
+        self.mu          = configuration.mu
+        self.association = configuration.association
+
+        #
+        # derived variables
+        #
+
+        # lazy initialization variables
+        self.delays   = None
+
+        # scalars
+        self.nclients = self.tau.shape[0]
+        self.nservers = self.tau.shape[1]
+        self.nstates  = pow(2, self.nclients)
+
+        # possible server for each client
+        self.servers  = np.zeros(self.nclients, dtype=int)
+        for i in range(self.nclients):
+            server_list = []
+            for (ndx,s) in zip(range(self.nservers),self.association[i]):
+                if s == 1:
+                    server_list.append(ndx)
+            assert len(server_list) == 1
+            self.servers[i] = server_list[0]
+
+        # further size checks
+        assert self.x.shape[0] == self.nclients
+        assert self.load.shape[0] == self.nclients
+        assert self.mu.shape[0] == self.nservers
+        assert self.association.shape[0] == self.nclients
+        assert self.association.shape[1] == self.nservers
+
+    def clear(self):
+        "Remove all derived data structures"
+
+        self.delays   = None
+
+    def debugPrint(self, printDelay = False):
+        "Print the internal data structures"
+
+        self.printMat("Network delays",   self.tau)
+        self.printMat("Requests",         self.x)
+        self.printMat("Request rates",    self.load)
+        self.printMat("Server rates",     self.mu)
+        self.printMat("Associations",     self.association)
+        self.printMat("Possible servers", self.servers)
+
+        if printDelay:
+            self.printMat("Steady state average delays", self.steady_state_delays())
+
+    def steady_state_delays(self):
+        "Return the average delay per client"
+
+        if self.delays is not None:
+            return self.delays
+
+        self.delays = np.zeros([self.nclients])
+
+        # compute the total load per every server
+        loads = np.zeros(self.nservers)
+        for i,j in zip(range(self.nclients), self.servers):
+            loads[j] += self.load[i]
+
+        # compute average delay, use -1 if server is unstable
+        for i in range(self.nclients):
+            server = self.servers[i]
+
+            if self.mu[server] <= loads[server]:
+                self.delays[i] = -1.0
+
+            else:
+                queueing_delay = \
+                    ( self.x[i] * self.mu[server] ) / \
+                    ( self.mu[server] - loads[server] )
+
+                self.delays[i] = self.tau[i, j] + queueing_delay \
+            
         return self.delays
