@@ -1,37 +1,32 @@
 #!/bin/bash
 
-single_dual="single dual"
+policies="single dual"
 runs=100
-scenario="a b"
+servers="4 6 8"
+tot_mu=96
 
-for x in $scenario ; do
-  
-  if [ $x == "a" ] ; then
-    mu=12
-    servers=6
-  elif [ $x == "b" ] ; then
-    mu=16
-    servers=8
-  fi
+for s in $servers ; do
 
-  for s in $single_dual ; do
+  mu=$(( tot_mu / s ))
+
+  for p in $policies ; do
     single_flag=
-    if [ $s == "single" ] ; then
+    if [ $p == "single" ] ; then
       single_flag="--single"
     fi
 
     for (( c = 2 ; c <= 16 ; c+=2 )) ; do
-      echo "$s, $c clients, servers $servers, mu $mu"
+      echo "policy $p, $c clients, $s servers, mu $mu"
 
       python ../../Serverless/serverless.py \
         --clients $c \
-        --servers $servers \
+        --servers $s \
         --mu_min $mu --mu_max $mu \
         --load_min 1 --load_max 3 \
         --threads 1 \
         $single_flag \
         --runs $runs \
-        --output out.$a.s=$s.c=$c.dat
+        --output out.p=$p.c=$c.s=$s.dat
     done
   done
 done
