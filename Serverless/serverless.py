@@ -65,6 +65,7 @@ args = parser.parse_args()
 assert args.clients >= 1
 assert args.servers >= 1
 assert args.load_max >= args.load_min
+assert args.mu_max >= args.mu_min
 
 # initialize RNG
 random.seed(args.seed)
