@@ -15,7 +15,7 @@ for s in $servers ; do
       single_flag="--single"
     fi
 
-    for (( c = 2 ; c <= 16 ; c+=2 )) ; do
+    for (( c = 2 ; c <= 14 ; c+=2 )) ; do
       echo "policy $p, $c clients, $s servers, mu $mu"
 
       python ../../Serverless/serverless.py \
