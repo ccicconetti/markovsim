@@ -10,7 +10,7 @@ for c in $clients ; do
 
     python ../../Serverless/serverless.py \
       --clients $c \
-      --servers 6
+      --servers 6 \
       --chi $chi \
       --mu_min 8 --mu_max 12 \
       --load_min 1 --load_max 3 \
