@@ -1,7 +1,7 @@
 #!/bin/bash
 
-runs=100
-clients="5 6 7 8 9 10 11"
+runs=1000
+clients="6 7 8 9 10"
 chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2"
 
 for c in $clients ; do
@@ -12,7 +12,7 @@ for c in $clients ; do
       --clients $c \
       --servers 6 \
       --chi $chi \
-      --mu_min 8 --mu_max 12 \
+      --mu_min 8 --mu_max 16 \
       --load_min 1 --load_max 3 \
       --threads 1 \
       --runs $runs \
