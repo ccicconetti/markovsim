@@ -4,7 +4,7 @@ runs=100
 clients="2 8 14"
 servers="4 6 8"
 tot_mu=96
-chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1"
+chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2"
 
 for s in $servers ; do
 
