@@ -109,18 +109,6 @@ class SteadyState(SteadyStateGeneric):
         self.pi       = None
         self.delays   = None
 
-    @staticmethod
-    def printMat(name, mat):
-        "Print a matrix per row, prepending the data structure name in a separate line"
-
-        print "{}: ".format(name)
-        if isinstance(mat, sp.dok_matrix):
-            for row in mat.toarray():
-                print row
-        else:
-            for row in mat:
-                print row
-
     def debugPrint(self, printDelay = False):
         "Print the internal data structures"
 
@@ -135,7 +123,7 @@ class SteadyState(SteadyStateGeneric):
 
         if printDelay:
             self.printMat("Average delays per state (serving)", self.__delta())
-            self.printMat("Average delays per state(probing)", self.__deltabar())
+            self.printMat("Average delays per state (probing)", self.__deltabar())
             try:
                 self.printMat("Steady state state transition matrix", self.transition())
                 self.printMat("Steady state state probabilities", self.probabilities())
