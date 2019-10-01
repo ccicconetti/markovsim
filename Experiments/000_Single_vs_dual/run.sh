@@ -5,6 +5,8 @@ runs=100
 servers="4 6 8"
 tot_mu=96
 
+mkdir raw 2> /dev/null
+
 for s in $servers ; do
 
   mu=$(( tot_mu / s ))
@@ -26,7 +28,7 @@ for s in $servers ; do
         --threads 1 \
         $single_flag \
         --runs $runs \
-        --output out.p=$p.c=$c.s=$s.dat
+        --output raw/out.p=$p.c=$c.s=$s.dat
     done
   done
 done
