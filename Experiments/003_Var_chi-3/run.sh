@@ -2,7 +2,9 @@
 
 runs=1000
 clients="6 7 8 9 10"
-chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2"
+chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1"
+
+mkdir raw 2> /dev/null
 
 for c in $clients ; do
   for chi in $chi_values ; do
@@ -16,6 +18,6 @@ for c in $clients ; do
       --load_min 2 --load_max 2 \
       --threads 1 \
       --runs $runs \
-      --output out.chi=$chi.c=$c.dat
+      --output raw/out.chi=$chi.c=$c.dat
   done
 done

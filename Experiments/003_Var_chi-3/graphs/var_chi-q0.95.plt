@@ -1,0 +1,16 @@
+#set term x11 persist
+set grid
+set key bmargin center horizontal
+
+set xlabel "{/Symbol c}"
+set ylabel "95th percentile of average delay"
+
+set logscale x
+set xrange [0.001:0.1]
+
+plot \
+ '../data/out-0.95-6.dat' u 1:2 w lp pt 4 title "6 clients",\
+ '../data/out-0.95-7.dat' u 1:2 w lp pt 6 title "7 clients",\
+ '../data/out-0.95-8.dat' u 1:2 w lp pt 8 title "8 clients",\
+ '../data/out-0.95-9.dat' u 1:2 w lp pt 10 title "9 clients",\
+ '../data/out-0.95-10.dat' u 1:2 w lp pt 12 title "10 clients"
