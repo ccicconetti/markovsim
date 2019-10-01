@@ -9,8 +9,8 @@ import configuration
 chi = 0.1
 tau = np.array([[1, 1, 2], [1, 1, 2]])
 x = np.array([1, 1])
-load = np.array([2, 4])
-mu = np.array([6, 8, 10])
+load = np.array([3, 4.5])
+mu = np.array([5, 10, 15])
 association = np.array([[1, 1, 0], [0, 1, 1]])
 
 ss = steadystate.SteadyState(
