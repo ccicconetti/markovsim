@@ -117,6 +117,9 @@ sim.run(configurations)
 
 with open(args.output, 'w') as outfile:
     for array in sim.average_delays:
+        if array is None:
+            # skip invalid measurements
+            continue
         for value in array:
             outfile.write('{} '.format(value))
         outfile.write('\n')

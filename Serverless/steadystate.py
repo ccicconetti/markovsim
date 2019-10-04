@@ -228,8 +228,9 @@ class SteadyState(SteadyStateGeneric):
                     to_be_added = False
                 else:
                     for i in range(self.nclients):
-                        if self.state[i, h] not in possible_destinations[i] or \
-                           self.delta[i, h] < 0:
+                        #if self.state[i, h] not in possible_destinations[i] or \
+                        #   self.delta[i, h] < 0:
+                        if self.state[i, h] not in possible_destinations[i]:
                             to_be_added = False
                             break
                 if to_be_added:
@@ -238,6 +239,11 @@ class SteadyState(SteadyStateGeneric):
             # if there are no possible destinations, then k is an absorbing state,
             # which should not be the case
             if len(dest_states) == 0:
+                #for xxx in range(self.nclients):
+                #    print "{} {} {}".format(
+                #        self.delta[xxx, k],
+                #        self.deltabar[xxx, k],
+                #        possible_destinations[xxx])
                 raise DegenerateException("Cannot compute transition matrix with absorbing states")
 
             # we assume any state has the same probability to be reached from this
@@ -286,16 +292,28 @@ class SteadyState(SteadyStateGeneric):
         return self.pi
 
     def __remain(self, i, k):
-        "Return True if the client i prefers to remain when in state k"
+        """
+        Return True if the client i prefers to remain when in state k.
+
+        There are different cases depending on whether the queue is stable
+        in the given primary or secondary state.
+
+        Primary unstable: always leave (this is _arbitrary_)
+        Primary stable:
+        - if secondary unstable: always remain
+        - if secondary stable: remain only if delay primary < delay secondary
+        """
 
         assert self.delta is not None
         assert self.deltabar is not None
 
-        if self.deltabar[i, k] < 0 and self.delta[i, k] > 0:
-            return True
-        if self.delta[i, k] < 0 or self.deltabar[i, k] <= self.delta[i, k]:
-            return False
-        return True
+        if self.delta[i, k] < 0:
+            return False  # leave
+        if self.deltabar[i, k] < 0:
+            return True   # remain
+        if self.deltabar[i, k] < self.delta[i, k]:
+            return False  # leave
+        return True  # remain
 
     def absorbing(self):
         "Return the list of absorbing states (may be empty)"
@@ -322,9 +340,25 @@ class SteadyState(SteadyStateGeneric):
 
         # make sure the delta and state probabilities are initialized
         self.__delta()
-        self.probabilities()
 
-        self.delays = np.matmul(self.delta, self.pi)
+        try:
+            self.probabilities()
+
+            self.delays = np.matmul(self.delta, self.pi)
+
+        except DegenerateException:
+            absorbing_states = self.absorbing()
+            assert len(absorbing_states) > 0
+
+            if len(absorbing_states) > 1:
+                # not sure if this may ever happen
+                print "> 1 absorbing state: {}".format(absorbing_states)
+            else:
+                print "found an absorbing state"
+
+            self.delays = np.zeros([self.nclients])
+            for i in range(self.nclients):
+                self.delays[i] = self.delta[i, absorbing_states[0]]
 
         return self.delays
 
