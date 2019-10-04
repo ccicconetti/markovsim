@@ -4,7 +4,7 @@ set key bmargin center horizontal
 
 set xlabel "{/Symbol c}"
 set ylabel "95th percentile of average delays"
-set xtics (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5)
+set xtics (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
 set logscale x
 set xrange [0.001:0.5]
 
