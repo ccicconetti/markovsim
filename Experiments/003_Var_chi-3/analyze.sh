@@ -2,8 +2,7 @@
 
 clients="6 7 8 9 10"
 chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.4 0.5"
-quantiles="0.5 0.9 0.95 0.98 0.99 mean stable"
-quantiles="stable"
+quantiles="0.5 0.9 0.95 0.98 0.99 mean"
 
 mkdir data 2> /dev/null
 
@@ -23,9 +22,6 @@ for q in $quantiles ; do
           sed -e "/^$/d" | sed -e "/^-/d" |\
           sort -n | head -n $numlines |\
           percentile.py --mean | cut -d ' ' -f 1,3)
-
-      elif [ $q == "stable" ] ; then
-        value=$(wc -l $infile | cut -f 1 -d ' ')
 
       else
         value=$(cat $infile | tr ' ' '\n' | \

@@ -23,7 +23,7 @@ for s in $servers ; do
         --load_min 1 --load_max 3 \
         --threads 1 \
         --runs $runs \
-        --output out.chi=$chi.c=$c.s=$s.dat
+        --output raw/out.chi=$chi.c=$c.s=$s.dat
     done
   done
 done

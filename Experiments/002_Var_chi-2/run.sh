@@ -2,7 +2,8 @@
 
 runs=1000
 clients="6 7 8 9 10"
-chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2"
+chi_values="0.001 0.002 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.4 0.5"
+chi_values="0.3 0.4 0.5"
 
 for c in $clients ; do
   for chi in $chi_values ; do
