@@ -7,6 +7,7 @@ set ylabel "Median of average delays"
 set xtics (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
 set logscale x
 set xrange [0.001:0.5]
+set pointsize 2
 
 plot \
  '../data/out-0.5-6.dat' u 1:2 w lp pt 4 title "6 clients",\

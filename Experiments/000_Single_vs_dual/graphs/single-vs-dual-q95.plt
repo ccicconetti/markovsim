@@ -6,6 +6,7 @@ set yrange [0:5]
 set xrange [2:14]
 set xlabel "Number of clients"
 set ylabel "95th percentile of average delay"
+set pointsize 2
 
 set multiplot layout 1,3 rowsfirst
 
