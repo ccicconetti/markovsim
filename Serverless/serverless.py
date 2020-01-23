@@ -19,7 +19,10 @@ parser.add_argument(
     help="Be verbose")
 parser.add_argument(
     "--single", action="store_true", default=False,
-    help="Single client-server association")
+    help="Single client-server association (cannot be used with --absorbing)")
+parser.add_argument(
+    "--absorbing", action="store_true", default=False,
+    help="Print the number of absorbing state (cannot be used with --single)")
 parser.add_argument(
     "--progress", action="store_true", default=False,
     help="Print progress")
@@ -66,6 +69,7 @@ assert args.clients >= 1
 assert args.servers >= 1
 assert args.load_max >= args.load_min
 assert args.mu_max >= args.mu_min
+assert not (args.single and args.absorbing)
 
 # initialize RNG
 random.seed(args.seed)
@@ -107,20 +111,33 @@ for n in range(args.runs):
         mu = mu,
         association = association))
 
-sim = steadystate.Simulator(
-    single = args.single,
-    nthreads = args.threads,
-    verbose = args.verbose,
-    progress = args.progress)
+if args.absorbing:
+    num_absorbing = 0
+    for conf in configurations:
+        ss = steadystate.SteadyState(conf, args.verbose)
+        absorbing_states = ss.absorbing()
+        if len(absorbing_states) > 0:
+            if len(absorbing_states) > 1:
+                print "> 1 absorbing states: {}".format(absorbing_states)
+            num_absorbing += 1
+    with open(args.output, 'w') as outfile:
+        outfile.write('{}\n'.format(num_absorbing))
 
-sim.run(configurations)
+else:
+    sim = steadystate.Simulator(
+        single = args.single,
+        nthreads = args.threads,
+        verbose = args.verbose,
+        progress = args.progress)
 
-with open(args.output, 'w') as outfile:
-    for array in sim.average_delays:
-        if array is None:
-            # skip invalid measurements
-            continue
-        for value in array:
-            outfile.write('{} '.format(value))
-        outfile.write('\n')
+    sim.run(configurations)
+
+    with open(args.output, 'w') as outfile:
+        for array in sim.average_delays:
+            if array is None:
+                # skip invalid measurements
+                continue
+            for value in array:
+                outfile.write('{} '.format(value))
+            outfile.write('\n')
 
