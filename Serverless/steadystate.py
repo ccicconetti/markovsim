@@ -1,4 +1,6 @@
-"""Compute the steady-state delays of a serverless edge computing"""
+"""
+Compute the steady-state delays of a serverless edge computing system
+"""
 
 __author__  = "Claudio Cicconetti"
 __version__ = "0.1.0"
@@ -8,40 +10,53 @@ import numpy as np
 from itertools import product
 import scipy.sparse as sp
 from scipy.linalg import norm
+import threading
+import time
 
 class DegenerateException(Exception):
     """Raised when the transition matrix is degenerate"""
     pass
 
-class SteadyState(object):
-    """Steady-state delays of a serverless edge computing with two options"""
+class SteadyStateGeneric(object):
+    """Steady-state simulation object"""
 
     def __init__(self,
-                 chi,
-                 tau,
-                 x,
-                 load,
-                 mu,
-                 association,
                  verbose = False):
-
-        assert 0 < chi < 1
-        assert len(tau.shape) == 2
-        assert len(x.shape) == 1
-        assert len(load.shape) == 1
-        assert len(mu.shape) == 1
-        assert len(association.shape) == 2
-
         # configuration
         self.verbose     = verbose
 
+    @staticmethod
+    def printMat(name, mat):
+        "Print a matrix per row, prepending the data structure name in a separate line"
+
+        print "{}: ".format(name)
+        if isinstance(mat, sp.dok_matrix):
+            for row in mat.toarray():
+                print row
+        else:
+            for row in mat:
+                print row
+
+################################################################################
+################################################################################
+################################################################################
+
+class SteadyState(SteadyStateGeneric):
+    """Steady-state delays of a serverless edge computing with two options"""
+
+    def __init__(self,
+                 configuration,
+                 verbose = False):
+
+        super(SteadyState, self).__init__(verbose)
+
         # input
-        self.chi         = chi
-        self.tau         = tau
-        self.x           = x
-        self.load        = load
-        self.mu          = mu
-        self.association = association
+        self.chi         = configuration.chi
+        self.tau         = configuration.tau
+        self.x           = configuration.x
+        self.load        = configuration.load
+        self.mu          = configuration.mu
+        self.association = configuration.association
 
         #
         # derived variables
@@ -55,8 +70,8 @@ class SteadyState(object):
         self.delays   = None
 
         # scalars
-        self.nclients = tau.shape[0]
-        self.nservers = tau.shape[1]
+        self.nclients = self.tau.shape[0]
+        self.nservers = self.tau.shape[1]
         self.nstates  = pow(2, self.nclients)
 
         # possible servers for each client
@@ -94,18 +109,6 @@ class SteadyState(object):
         self.pi       = None
         self.delays   = None
 
-    @staticmethod
-    def printMat(name, mat):
-        "Print a matrix per row, prepending the data structure name in a separate line"
-
-        print "{}: ".format(name)
-        if isinstance(mat, sp.dok_matrix):
-            for row in mat.toarray():
-                print row
-        else:
-            for row in mat:
-                print row
-
     def debugPrint(self, printDelay = False):
         "Print the internal data structures"
 
@@ -120,7 +123,7 @@ class SteadyState(object):
 
         if printDelay:
             self.printMat("Average delays per state (serving)", self.__delta())
-            self.printMat("Average delays per state(probing)", self.__deltabar())
+            self.printMat("Average delays per state (probing)", self.__deltabar())
             try:
                 self.printMat("Steady state state transition matrix", self.transition())
                 self.printMat("Steady state state probabilities", self.probabilities())
@@ -225,8 +228,9 @@ class SteadyState(object):
                     to_be_added = False
                 else:
                     for i in range(self.nclients):
-                        if self.state[i, h] not in possible_destinations[i] or \
-                           self.delta[i, h] < 0:
+                        #if self.state[i, h] not in possible_destinations[i] or \
+                        #   self.delta[i, h] < 0:
+                        if self.state[i, h] not in possible_destinations[i]:
                             to_be_added = False
                             break
                 if to_be_added:
@@ -235,6 +239,11 @@ class SteadyState(object):
             # if there are no possible destinations, then k is an absorbing state,
             # which should not be the case
             if len(dest_states) == 0:
+                #for xxx in range(self.nclients):
+                #    print "{} {} {}".format(
+                #        self.delta[xxx, k],
+                #        self.deltabar[xxx, k],
+                #        possible_destinations[xxx])
                 raise DegenerateException("Cannot compute transition matrix with absorbing states")
 
             # we assume any state has the same probability to be reached from this
@@ -283,16 +292,28 @@ class SteadyState(object):
         return self.pi
 
     def __remain(self, i, k):
-        "Return True if the client i prefers to remain when in state k"
+        """
+        Return True if the client i prefers to remain when in state k.
+
+        There are different cases depending on whether the queue is stable
+        in the given primary or secondary state.
+
+        Primary unstable: always leave (this is _arbitrary_)
+        Primary stable:
+        - if secondary unstable: always remain
+        - if secondary stable: remain only if delay primary < delay secondary
+        """
 
         assert self.delta is not None
         assert self.deltabar is not None
 
-        if self.deltabar[i, k] < 0 and self.delta[i, k] > 0:
-            return True
-        if self.delta[i, k] < 0 or self.deltabar[i, k] <= self.delta[i, k]:
-            return False
-        return True
+        if self.delta[i, k] < 0:
+            return False  # leave
+        if self.deltabar[i, k] < 0:
+            return True   # remain
+        if self.deltabar[i, k] < self.delta[i, k]:
+            return False  # leave
+        return True  # remain
 
     def absorbing(self):
         "Return the list of absorbing states (may be empty)"
@@ -319,8 +340,198 @@ class SteadyState(object):
 
         # make sure the delta and state probabilities are initialized
         self.__delta()
-        self.probabilities()
 
-        self.delays = np.matmul(self.delta, self.pi)
+        try:
+            self.probabilities()
+
+            self.delays = np.matmul(self.delta, self.pi)
+
+        except DegenerateException:
+            absorbing_states = self.absorbing()
+            assert len(absorbing_states) > 0
+
+            if len(absorbing_states) > 1:
+                # not sure if this may ever happen
+                print "> 1 absorbing state: {}".format(absorbing_states)
+            else:
+                print "found an absorbing state"
+
+            self.delays = np.zeros([self.nclients])
+            for i in range(self.nclients):
+                self.delays[i] = self.delta[i, absorbing_states[0]]
 
         return self.delays
+
+################################################################################
+################################################################################
+################################################################################
+
+class SteadyStateSingle(SteadyStateGeneric):
+    """Steady-state delays of a serverless edge computing with a single option"""
+
+    def __init__(self,
+                 configuration,
+                 verbose = False):
+
+        super(SteadyStateSingle, self).__init__(verbose)
+
+        # input
+        self.tau         = configuration.tau
+        self.x           = configuration.x
+        self.load        = configuration.load
+        self.mu          = configuration.mu
+        self.association = configuration.association
+
+        #
+        # derived variables
+        #
+
+        # lazy initialization variables
+        self.delays   = None
+
+        # scalars
+        self.nclients = self.tau.shape[0]
+        self.nservers = self.tau.shape[1]
+        self.nstates  = pow(2, self.nclients)
+
+        # possible server for each client
+        self.servers  = np.zeros(self.nclients, dtype=int)
+        for i in range(self.nclients):
+            server_list = []
+            for (ndx,s) in zip(range(self.nservers),self.association[i]):
+                if s == 1:
+                    server_list.append(ndx)
+            assert len(server_list) == 1
+            self.servers[i] = server_list[0]
+
+        # further size checks
+        assert self.x.shape[0] == self.nclients
+        assert self.load.shape[0] == self.nclients
+        assert self.mu.shape[0] == self.nservers
+        assert self.association.shape[0] == self.nclients
+        assert self.association.shape[1] == self.nservers
+
+    def clear(self):
+        "Remove all derived data structures"
+
+        self.delays   = None
+
+    def debugPrint(self, printDelay = False):
+        "Print the internal data structures"
+
+        self.printMat("Network delays",   self.tau)
+        self.printMat("Requests",         self.x)
+        self.printMat("Request rates",    self.load)
+        self.printMat("Server rates",     self.mu)
+        self.printMat("Associations",     self.association)
+        self.printMat("Possible servers", self.servers)
+
+        if printDelay:
+            self.printMat("Steady state average delays", self.steady_state_delays())
+
+    def steady_state_delays(self):
+        "Return the average delay per client"
+
+        if self.delays is not None:
+            return self.delays
+
+        self.delays = np.zeros([self.nclients])
+
+        # compute the total load per every server
+        loads = np.zeros(self.nservers)
+        for i,j in zip(range(self.nclients), self.servers):
+            loads[j] += self.load[i]
+
+        # compute average delay, use -1 if server is unstable
+        for i in range(self.nclients):
+            server = self.servers[i]
+
+            if self.mu[server] <= loads[server]:
+                self.delays[i] = -1.0
+
+            else:
+                queueing_delay = \
+                    ( self.x[i] * self.mu[server] ) / \
+                    ( self.mu[server] - loads[server] )
+
+                self.delays[i] = self.tau[i, j] + queueing_delay \
+            
+        return self.delays
+
+################################################################################
+################################################################################
+################################################################################
+
+class Simulator(object):
+    "Run simulations using a pool of threads"
+
+    def __init__(self, single = False, nthreads = 1, verbose = False, progress = False):
+        "Initialize object"
+
+        # consistency checks
+        assert nthreads >= 1
+
+        # input
+        self.single   = single
+        self.nthreads = nthreads
+        self.verbose  = verbose
+        self.progress = progress
+
+        # internal data structures
+        self.lock = threading.Lock()
+        self.done = []
+        self.average_delays = []
+
+    def run(self, configurations):
+        "Run the simulations in the given list of Configuration objects"
+
+        self.configurations = configurations
+        self.done = [False for i in range(len(configurations))]
+        self.average_delays = [None for i in range(len(configurations))]
+
+        # spawn threads
+        threads = []
+        for i in range(min(self.nthreads,len(configurations))):
+            t = threading.Thread(target = self.__work, args=[i])
+            threads.append(t)
+            t.start()
+
+        # wait for the threads to terminate
+        for t in threads:
+            t.join()
+
+    def __work(self, tid):
+        "Execute a single simulation"
+
+        while True:
+            # find the next job, if none leave
+            job = None
+            with self.lock:
+                for done, ndx in zip(self.done, range(len(self.done))):
+                    if not done:
+                        self.done[ndx] = True
+                        job = ndx
+                        break
+
+            if job is None:
+                break
+
+            if self.single:
+                ss = SteadyStateSingle(self.configurations[job], self.verbose)
+            else:
+                ss = SteadyState(self.configurations[job], self.verbose)
+
+            if self.verbose:
+                with self.lock:
+                    ss.debugPrint(True)
+
+            try:
+                now = time.time()
+                average_delays = ss.steady_state_delays()
+                with self.lock:
+                    if self.progress:
+                        print "thread#{}, job {}/{}, required {} s".format(tid, ndx, len(self.done), time.time() - now)
+                    self.average_delays[job] = average_delays
+
+            except DegenerateException:
+                print "skipped run#{}, absorbing states: {}".format(job, ', '.join([str(y) for y in ss.absorbing()]))
