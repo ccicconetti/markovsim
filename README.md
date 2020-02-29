@@ -22,6 +22,10 @@ and secondary servers, it is also assumed that the client performs
 a fraction of its requests towards the secondary server (the
 fraction being equal for all clients and called Chi in code).
 
+If you use this tool in your research, please cite as:
+
+C. Cicconetti, M. Conti and A. Passarella, _Uncoordinated access to serverless computing in MEC systems for IoT_, Computer Networks, https://doi.org/10.1016/j.comnet.2020.107184
+
 ## Dependencies
 
 Uses Python 2.7. Requires numpy and scipy.
