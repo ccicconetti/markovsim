@@ -27,6 +27,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+Compute the average latency of a pool of FaaS workers, where:
+- one group is assigned one stateful container each;
+- another group of workers share a pool of stateless containers.
+*/
+
 #include "Support/chrono.h"
 #include "Support/glograii.h"
 

@@ -8,12 +8,11 @@ target_link_libraries(markovsim
   ${GLOG}
 )
 
-add_executable(sfm
-  ${CMAKE_CURRENT_SOURCE_DIR}/sfm.cpp
+add_executable(sfm-latency
+  ${CMAKE_CURRENT_SOURCE_DIR}/sfm-latency.cpp
 )
 
-target_link_libraries(sfm
-  uiiitmarkov
+target_link_libraries(sfm-latency
   uiiitsupport
   ${GLOG}
 )
