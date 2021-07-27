@@ -87,6 +87,12 @@ int main(int argc, char *argv[]) {
 
   std::string myOutput;
 
+#ifndef NDEBUG
+  assert(std::abs(erlang_c(40, 36) - 0.41156) < 0.0001);
+  assert(std::abs(erlang_c(40, 27) - 0.01272) < 0.0001);
+  assert(std::abs(erlang_c(40, 18) - 0.0000055155) < 0.0000000001);
+#endif
+
   po::options_description myDesc("Allowed options");
   // clang-format off
   myDesc.add_options()
@@ -172,13 +178,13 @@ int main(int argc, char *argv[]) {
       }
 
       // average latency of clients associated to a pool of shared containers
-      double L_L =
-          n_L > 0 ? erlang_c(C_L, lambda_L / mu_L) / (mu_L * C_L - lambda_L) +
-                        inv_mu_L
-                  : 0;
+      auto L_L =
+          n_L > 0 ? (erlang_c(C_L, lambda_L / mu_L) / (mu_L * C_L - lambda_L) +
+                     inv_mu_L)
+                  : 0.0;
 
       // average system latency
-      double L = (n_F * L_F + n_L * L_L) / C_k;
+      double L = (n_F * L_F + n_L * L_L) / N_k;
 
       myOutfile << n_F << ' ' << L << '\n';
     }
