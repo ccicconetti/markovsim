@@ -3,7 +3,7 @@ cmake_policy(SET CMP0048 NEW)
 project(uiiitmarkov VERSION 1.0.0)
 cmake_minimum_required(VERSION 3.2)
 
-set (CMAKE_CXX_STANDARD 14) # c++14
+set (CMAKE_CXX_STANDARD 17)
 
 if(APPLE)
   find_package(glog REQUIRED)
