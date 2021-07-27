@@ -34,31 +34,76 @@ SOFTWARE.
 
 #include <glog/logging.h>
 
+#include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <limits>
 
 namespace po = boost::program_options;
 
 double erlang_c([[maybe_unused]] size_t aWorkers,
                 [[maybe_unused]] double aLoad) {
-  return 1.0;
+  assert(aWorkers > 0);
+  assert(aLoad > 0);
+
+  //            A
+  // return ---------
+  //          A + B
+
+  // compute A
+  double myFact = 1.0; // (aWorkers-1) * (aWorkers-2) * ... * 2 * 1
+  for (size_t i = 2; i < aWorkers; i++) {
+    myFact *= i;
+  }
+  double A = std::pow(aLoad, aWorkers) / (myFact * (aWorkers - aLoad));
+
+  // compute B
+  double B = 0;
+  double myCurFact = 1.0;
+  for (size_t i = 0; i < aWorkers; i++) {
+    if (i > 0) {
+      myCurFact *= i;
+    }
+    B += std::pow(aLoad, i) / myCurFact;
+  }
+
+  return A / (A + B);
 }
 
 int main(int argc, char *argv[]) {
   uiiit::support::GlogRaii myGlogRaii(argv[0]);
 
-  size_t N_k = 40; // number of containers
-  size_t C_k = 70; // number of clients
-  double mu_F = 1.0;
-  double mu_L = 1.0 / 3;
-  double lambda_k = 0.075;
+  size_t N_k; // number of containers
+  size_t C_k; // number of clients
+  double mu_F;
+  double mu_L;
+  double lambda_k;
+
+  std::string myOutput;
 
   po::options_description myDesc("Allowed options");
   // clang-format off
   myDesc.add_options()
     ("help,h", "produce help message")
+    ("arrival-rate",
+     po::value<double>(&lambda_k)->default_value(0.075),
+     "Arrival rate, in Hz.")
+    ("containers",
+     po::value<size_t>(&N_k)->default_value(40),
+     "Number of containers")
+    ("clients",
+     po::value<size_t>(&C_k)->default_value(70),
+     "Number of clients")
+    ("service-time-full",
+     po::value<double>(&mu_F)->default_value(1.0),
+     "Service time for clients assigned a dedicated container.")
+    ("service-time-less",
+     po::value<double>(&mu_L)->default_value(1.0 / 3),
+     "Service time for clients sharing a pool of non-dedicated containers.")
+    ("output",
+     po::value<std::string>(&myOutput)->default_value("out.dat"),
+     "Output file.")
     ;
   // clang-format on
 
@@ -70,6 +115,11 @@ int main(int argc, char *argv[]) {
     if (myVarMap.count("help")) {
       std::cout << myDesc << std::endl;
       return EXIT_FAILURE;
+    }
+
+    std::ofstream myOutfile(myOutput);
+    if (not myOutfile) {
+      throw std::runtime_error("Could not open file: " + myOutput);
     }
 
     for (size_t n_F = 0; n_F < N_k; n_F++) {
@@ -89,8 +139,8 @@ int main(int argc, char *argv[]) {
       double L_L =
           erlang_c(C_L, lambda_L / mu_L) / (mu_L * C_L - lambda_L) + 1.0 / mu_L;
 
-      double L = (n_F * L_F + n_L * L_L) / N_k;
-      std::cout << n_F << ' ' << L_L << ' ' << L << std::endl;
+      double L = (n_F * L_F + n_L * L_L) / C_k;
+      myOutfile << n_F << ' ' << L << '\n';
     }
 
     return EXIT_SUCCESS;
