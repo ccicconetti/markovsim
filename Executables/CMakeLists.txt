@@ -17,3 +17,12 @@ target_link_libraries(sfm-latency
   ${GLOG}
 )
 
+add_executable(sfm-provisioning
+  ${CMAKE_CURRENT_SOURCE_DIR}/sfm-provisioning.cpp
+)
+
+target_link_libraries(sfm-provisioning
+  uiiitsupport
+  ${GLOG}
+)
+
