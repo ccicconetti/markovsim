@@ -80,8 +80,8 @@ double erlang_c([[maybe_unused]] size_t aWorkers,
 int main(int argc, char *argv[]) {
   uiiit::support::GlogRaii myGlogRaii(argv[0]);
 
-  size_t N_k; // number of containers
-  size_t C_k; // number of clients
+  size_t N_k; // number of clients
+  size_t C_k; // number of containers
   double mu_F;
   double mu_L;
   double lambda_k;
