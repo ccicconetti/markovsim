@@ -8,6 +8,6 @@ for (( clients = 40 ; clients <= 120 ; clients += 10 )) ; do
     --clients=$clients \
     --containers=40 \
     --service-time-full=1 \
-    --service-time-less=0.333 \
+    --service-time-less=3 \
     --output results/out-$clients.dat
 done
