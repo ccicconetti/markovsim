@@ -9,5 +9,5 @@ for (( clients = 40 ; clients <= 120 ; clients += 10 )) ; do
     --containers=40 \
     --service-time-full=1 \
     --service-time-less=3 \
-    --output results/out-$clients.dat
+    --output results/latency-$clients.dat
 done
