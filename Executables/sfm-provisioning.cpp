@@ -28,9 +28,12 @@ SOFTWARE.
 */
 
 /*
-Compute the average latency of a pool of FaaS workers, where:
-- one group is assigned one stateful container each;
-- another group of workers share a pool of stateless containers.
+Determine the min number of containers required for a given number of clients,
+which alternate between having a stateful (= they prefer having a dedicated
+container) vs. stateless nature (= they are OK with being assigned to a pool
+of shared stateless containers), so that the system is stable and the
+probability that a stateful container is assigned to a shared pool of
+stateless containers is below a given threshold (epsilon).
 */
 
 #include "Support/chrono.h"
@@ -45,8 +48,63 @@ Compute the average latency of a pool of FaaS workers, where:
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 namespace po = boost::program_options;
+
+double compute_C_F_max(const size_t C_k, const size_t N_k,
+                       const double lambda_k, const double mu_L) {
+  return C_k * (mu_L - lambda_k * N_k / C_k) / (mu_L - lambda_k);
+}
+
+double binom(const size_t n, const size_t k) {
+  // prepare input
+  std::vector<double> myVec1(k);
+  std::vector<double> myVec2(k);
+  for (size_t i = n - k + 1, j = 0; i <= n; i++, j++) {
+    myVec1[j] = i;
+  }
+  for (size_t i = k, j = 0; i >= 1; i--, j++) {
+    myVec2[j] = i;
+  }
+
+  // compute return value
+  double ret = 1.0;
+  for (size_t i = 0; i < k; i++) {
+    ret *= myVec1[i] / myVec2[i];
+  }
+  return ret;
+}
+
+double P_0(const size_t N_k, const double q_L, const double q_F) {
+  return std::pow(q_L / (q_F + q_L), N_k);
+}
+
+double P_i(const size_t N_k, const size_t i, const double q_L,
+           const double q_F) {
+  return P_0(N_k, q_L, q_F) * binom(N_k, i) * std::pow(q_F / q_L, i);
+}
+
+/**
+ * \return the probability that a function requiring a dedicated container
+ * is assigned instead to a pool of shared stateless containers.
+ */
+double compute_P_v(const size_t C_F_max, const size_t N_k, const double q_L,
+                   const double q_F) {
+  assert(C_F_max > 0);
+  assert(N_k > 0);
+
+  double ret = 0;
+
+  VLOG(2) << "q_L = " << q_L << ", q_F = " << q_F << " N_k = " << N_k << ", P0 "
+          << P_0(N_k, q_L, q_F);
+
+  for (size_t i = C_F_max; i <= N_k; i++) {
+    ret += P_i(N_k, i, q_L, q_F);
+  }
+
+  return ret / (1 - P_0(N_k, q_L, q_F));
+}
 
 int main(int argc, char *argv[]) {
   uiiit::support::GlogRaii myGlogRaii(argv[0]);
@@ -59,7 +117,11 @@ int main(int argc, char *argv[]) {
   double q_L;
   double epsilon;
 
-  std::string myOutput;
+#ifndef NDEBUG
+  assert(std::abs(binom(10, 4)) - 210.0 < 0.1);
+  assert(std::abs(binom(20, 10)) - 184756.0 < 0.1);
+  assert(std::abs(binom(30, 10)) - 30045015.0 < 0.1);
+#endif
 
   po::options_description myDesc("Allowed options");
   // clang-format off
@@ -78,17 +140,14 @@ int main(int argc, char *argv[]) {
      po::value<double>(&inv_mu_L)->default_value(3.0),
      "Service time for clients sharing a pool of non-dedicated containers, in s.")
     ("q-full",
-     po::value<double>(&q_F)->default_value(80),
+     po::value<double>(&q_F)->default_value(20),
      "Transition rate of clients in a stateless state.")
     ("q-less",
-     po::value<double>(&q_L)->default_value(20),
+     po::value<double>(&q_L)->default_value(80),
      "Transition rate of clients in a stateful state.")
     ("epsilon",
      po::value<double>(&epsilon)->default_value(0.01),
      "Maximum accepted probability that a client in stateful state is served by a shared container.")
-    ("output",
-     po::value<std::string>(&myOutput)->default_value("out.dat"),
-     "Output file.")
     ;
   // clang-format on
 
@@ -125,12 +184,34 @@ int main(int argc, char *argv[]) {
       throw std::runtime_error("Invalid epsilon: " + std::to_string(epsilon));
     }
 
-    std::ofstream myOutfile(myOutput);
-    if (not myOutfile) {
-      throw std::runtime_error("Could not open file: " + myOutput);
-    }
+    for (size_t C_k = 1; C_k <= N_k; C_k++) {
+      // maximum number of containers that can be dedicated to stateful use
+      // while allowing the stateless clients to remain stable
+      // note: the number can be negative, in which case the system will not be
+      // stable for stateless clients even though they are left with _all_ the
+      /// containers
+      auto C_F_max_real = compute_C_F_max(C_k, N_k, lambda_k, mu_L);
+      auto C_F_max_int =
+          static_cast<size_t>(C_F_max_real < 0 ? 0 : C_F_max_real);
 
-    VLOG(1) << "mu_F = " << mu_F << ", mu_L = " << mu_L;
+      if (C_F_max_int == 0) {
+        VLOG(1) << "C_F_max = " << C_F_max_real << ": system unstable";
+        continue;
+      }
+
+      // probability that a stateful container "overflows" to the pool
+      // of shared stateless containers
+      auto P_v = compute_P_v(C_F_max_int, N_k, q_L, q_F);
+
+      VLOG(1) << "mu_F = " << mu_F << ", mu_L = " << mu_L << ", C_k = " << C_k
+              << ", C_F_max = " << C_F_max_real << ", P_v = " << P_v;
+
+      // if the probability is below threshold, quit
+      if (P_v <= epsilon) {
+        std::cout << C_k << std::endl;
+        break;
+      }
+    }
 
     return EXIT_SUCCESS;
 
