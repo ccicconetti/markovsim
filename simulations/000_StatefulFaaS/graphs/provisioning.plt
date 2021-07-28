@@ -60,7 +60,7 @@ set style histogram clustered gap 2 title textcolor lt -1
 unset object
 set style textbox transparent margins  1.0,  1.0 border  lt -1 linewidth  1.0
 set offsets 0, 0, 0, 0
-set pointsize 1.5
+set pointsize 1
 set pointintervalbox 1
 set encoding default
 unset polar
@@ -167,9 +167,7 @@ set psdir
 set fit brief errorvariables nocovariancevariables errorscaling prescale nowrap v5
 GNUTERM = "wxt"
 ## Last datafile plotted: "../results/provisioning.dat"
-#'../results/provisioning.dat' every 1 u 1:3 w lp lw 1.5 pt 5 title "Per client", \
-#'' every 1 u 1:4 w lp lw 1.5 pt 7 title "Per remote-state client"
 plot  \
-'../results/provisioning.dat' every 1 u 1:3 w l lw 3 title "Per client", \
-'' every 1 u 1:4 w l lw 3 title "Per client in remote-state"
+'../results/provisioning.dat' every 1 u 1:3 w lp lw 1.5 pt 9 title "Per client", \
+'' every 1 u 1:4 w lp lw 1.5 pt 11 title "Per client in remote-state"
 #    EOF
