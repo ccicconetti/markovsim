@@ -2,7 +2,8 @@
 
 mkdir results 2> /dev/null
 
-for (( clients = 1 ; clients <= 100 ; clients += 1 )) ; do
+rm -f results/provisioning.dat 2> /dev/null
+for (( clients = 5 ; clients <= 100 ; clients += 1 )) ; do
   ret=$(./sfm-provisioning \
     --arrival-rate=0.075 \
     --clients=$clients \
