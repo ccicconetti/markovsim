@@ -208,7 +208,8 @@ int main(int argc, char *argv[]) {
 
       // if the probability is below threshold, quit
       if (P_v <= epsilon) {
-        std::cout << C_k << std::endl;
+        std::cout << C_k << ' ' << (static_cast<double>(C_k) / N_k) << ' '
+                  << (C_k / (N_k * q_F / (q_F + q_L))) << std::endl;
         break;
       }
     }
