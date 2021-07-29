@@ -168,7 +168,7 @@ set fit brief errorvariables nocovariancevariables errorscaling prescale nowrap 
 GNUTERM = "wxt"
 ## Last datafile plotted: "../results/provisioning.dat"
 plot  \
-'../results/provisioning-20.dat' every 1 u 1:3 w lp lw 1.5 pt 7 title "Remote-state 20%",\
-'../results/provisioning-30.dat' every 1 u 1:3 w lp lw 1.5 pt 9 title "Remote-state 30%",\
-'../results/provisioning-40.dat' every 1 u 1:3 w lp lw 1.5 pt 11 title "Remote-state 40%"
+'../results/provisioning-20.dat' every 1 u 1:3 w lp lw 1.5 pt 7 title "Local-state 20%",\
+'../results/provisioning-30.dat' every 1 u 1:3 w lp lw 1.5 pt 9 title "Local-state 30%",\
+'../results/provisioning-40.dat' every 1 u 1:3 w lp lw 1.5 pt 11 title "Local-state 40%"
 #    EOF
