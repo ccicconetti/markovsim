@@ -17,6 +17,7 @@ _Stateful Function as a Service at the Edge_,"\
 git clone https://github.com/ccicconetti/markovsim.git
 cd markovsim/build/release
 ../build.sh g++
+make -j5
 cd ../../simulations/000_StatefulFaaS
 ln -s $OLDPWD/Executables/sfm* .
 ```
