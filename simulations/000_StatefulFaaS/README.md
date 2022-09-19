@@ -1,7 +1,9 @@
 This repo contains the source code and scripts used in the paper:
 
-C. Puliafito, C. Cicconetti, M. Conti, E. Mingozzi and A. Passarella \\
-_Stateful Function as a Service at the Edge_," \\
+C. Puliafito, C. Cicconetti, M. Conti, E. Mingozzi and A. Passarella 
+
+_Stateful Function as a Service at the Edge_," 
+
  in Computer, vol. 55, no. 9, pp. 54-64, Sept. 2022, doi: [10.1109/MC.2021.3138690](https://doi.org/10.1109/MC.2021.3138690).
 
 # Building
